@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorador de Madurez Curricular INGECO UCN</title>
+    <!-- Bibliotecas externas vía CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons para entorno web -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+        
+        // Helper para usar iconos de Lucide en React sin imports
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => {
+                lucide.createIcons();
+            }, [name, size, className]);
+            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+        };
+
+        const App = () => {
+            const [selectedHito, setSelectedHito] = useState(0);
+            const [expandedDomain, setExpandedDomain] = useState(null);
+            const [filterDomain, setFilterDomain] = useState(null);
+
+            const NIVELES = {
+                INICIAL: { label: 'Inicial', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                INTERMEDIO: { label: 'Intermedio', color: 'bg-purple-50 text-purple-700 border-purple-100' },
+                AVANZADO: { label: 'Avanzado', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' }
+            };
+
+            const DOMAIN_COLORS = {
+                D1: { 
+                    name: 'Análisis Económico y Entorno Empresarial',
+                    main: '#2563eb', light: '#eff6ff', border: '#dbeafe', text: '#1e40af', icon: 'bar-chart-3'
+                },
+                D2: { 
+                    name: 'Dirección Estratégica y Gestión Organizacional',
+                    main: '#7c3aed', light: '#f5f3ff', border: '#ede9fe', text: '#5b21b6', icon: 'briefcase'
+                },
+                D3: { 
+                    name: 'Innovación, Emprendimiento y Sostenibilidad',
+                    main: '#059669', light: '#ecfdf5', border: '#d1fae5', text: '#064e3b', icon: 'lightbulb'
+                },
+                ALL: { name: 'Integrador Transversal', main: '#475569', light: '#f8fafc', border: '#f1f5f9', text: '#1e293b', icon: 'layers' }
+            };
+
+            const masterSubjects = [
+                { id: 1, nombre: 'Comunicación y Pensamiento Crítico', sem: 'I', domain: 'D3', comp: 'C 3.1', nivel: 'INICIAL', ra: 'RA 118, 122' },
+                { id: 2, nombre: 'Matemática para los Negocios I', sem: 'I', domain: 'D1', comp: 'C 1.1', nivel: 'INICIAL', ra: 'RA 7, 8' },
+                { id: 3, nombre: 'Introducción a la Administración', sem: 'I', domain: 'D2', comp: 'C 2.1', nivel: 'INICIAL', ra: 'RA 11, 13' },
+                { id: 4, nombre: 'Herramientas para Análisis de Datos', sem: 'I', domain: 'D1', comp: 'C 1.1', nivel: 'INICIAL', ra: 'RA 14, 15' },
+                { id: 5, nombre: 'Valores UCN Nivel 1', sem: 'I', domain: 'D3', comp: 'C 3.1', nivel: 'INICIAL', ra: 'RA 119, 121' },
+                { id: 6, nombre: 'Fundamentos de Emprendimiento', sem: 'II', domain: 'D3', comp: 'C 3.1', nivel: 'INICIAL', ra: 'RA 119, 123' },
+                { id: 7, nombre: 'Contabilidad 1', sem: 'II', domain: 'D2', comp: 'C 2.1', nivel: 'INICIAL', ra: 'RA 46, 48' },
+                { id: 8, nombre: 'Introducción a la Economía', sem: 'II', domain: 'D1', comp: 'C 1.1', nivel: 'INICIAL', ra: 'RA 1, 3' },
+                { id: 9, nombre: 'Contabilidad 2', sem: 'III', domain: 'D2', comp: 'C 2.1', nivel: 'INTERMEDIO', ra: 'RA 44, 50' },
+                { id: 10, nombre: 'Formulación de Ideas de Negocios', sem: 'III', domain: 'D3', comp: 'C 3.1', nivel: 'INTERMEDIO', ra: 'RA 124, 128' },
+                { id: 11, nombre: 'Macroeconomía 1', sem: 'III', domain: 'D1', comp: 'C 1.1', nivel: 'INTERMEDIO', ra: 'RA 19, 21' },
+                { id: 12, nombre: 'Proyecto 1: Integración Inicial', sem: 'IV', domain: 'ALL', comp: 'HITO 1', nivel: 'INTERMEDIO', ra: 'Integrador Inicial' },
+                { id: 13, nombre: 'Microeconomía 1', sem: 'IV', domain: 'D1', comp: 'C 1.1', nivel: 'INTERMEDIO', ra: 'RA 16, 18' },
+                { id: 14, nombre: 'Comportamiento Organizacional', sem: 'IV', domain: 'D2', comp: 'C 2.1', nivel: 'INICIAL', ra: 'RA 25, 57' },
+                { id: 15, nombre: 'Econometría', sem: 'VI', domain: 'D1', comp: 'C 1.1', nivel: 'AVANZADO', ra: 'RA 31, 33' },
+                { id: 16, nombre: 'Herramientas Avanzadas de Gestión', sem: 'VII', domain: 'D1', comp: 'C 1.1', nivel: 'AVANZADO', ra: 'RA 113, 114' },
+                { id: 17, nombre: 'Formulación y Evaluación', sem: 'VIII', domain: 'ALL', comp: 'HITO 2', nivel: 'AVANZADO', ra: 'Integrador Profesional' },
+                { id: 18, nombre: 'Práctica Profesional', sem: 'IX', domain: 'ALL', comp: 'C 2.1', nivel: 'AVANZADO', ra: 'RA 101, 102' },
+                { id: 19, nombre: 'Capstone Project', sem: 'X', domain: 'ALL', comp: 'HITO 3', nivel: 'AVANZADO', ra: 'Integrador Egreso' }
+            ];
+
+            const hitosData = [
+                {
+                    id: 0,
+                    nombre: "Hito 1: Diagnóstico y Validación",
+                    corte: "Semestre IV",
+                    progreso: 38,
+                    resumen: "Valida la transición del análisis teórico al diagnóstico organizacional empírico, integrando economía descriptiva con la validación de ideas de negocio iniciales.",
+                    maxSem: 4,
+                    diseno: {
+                        nombre: "Laboratorio de Integración I: Diagnóstico Organizacional",
+                        objetivo: "Ejecutar diagnósticos integrales fundamentados en evidencia para validar la viabilidad técnica y administrativa de propuestas de valor tempranas.",
+                        ra: [
+                            "Diagnosticar situaciones organizacionales integrando herramientas de analítica descriptiva y marcos de análisis económico de micro/macro entorno.",
+                            "Validar la pertinencia técnica y comercial de modelos de negocio iniciales mediante metodologías de experimentación ágil y prototipado rápido.",
+                            "Fundamentar decisiones de gestión de nivel táctico a través de reportes técnicos que integren variables operativas y de mercado."
+                        ],
+                        unidades: [
+                            { t: "U1: Análisis Sistémico", subs: ["1.1 Monitorización de indicadores macro", "1.2 Evaluación de fuerzas competitivas", "1.3 Identificación de fallas de mercado"] },
+                            { t: "U2: Auditoría Operacional", subs: ["2.1 Análisis de flujos de procesos", "2.2 Evaluación de estructura de costos", "2.3 Caracterización del clima laboral"] },
+                            { t: "U3: Validación de Modelos", subs: ["3.1 Diseño de propuestas de triple impacto", "3.2 Aplicación de metodologías Lean Startup", "3.3 Ejecución de Producto Mínimo Viable (MVP)"] }
+                        ]
+                    },
+                    dominios: [
+                        { id: 'D1', name: DOMAIN_COLORS.D1.name, porcentaje: 35, color: DOMAIN_COLORS.D1.main, icon: DOMAIN_COLORS.D1.icon, comps: [{ id: '1.1', n: 'Intermedio', ra: '15/43' }] },
+                        { id: 'D2', name: DOMAIN_COLORS.D2.name, porcentaje: 20, color: DOMAIN_COLORS.D2.main, icon: DOMAIN_COLORS.D2.icon, comps: [{ id: '2.1', n: 'Inicial', ra: '12/59' }] },
+                        { id: 'D3', name: DOMAIN_COLORS.D3.name, porcentaje: 56, color: DOMAIN_COLORS.D3.main, icon: DOMAIN_COLORS.D3.icon, comps: [{ id: '3.1', n: 'Intermedio', ra: '9/16' }] }
+                    ]
+                },
+                {
+                    id: 1,
+                    nombre: "Hito 2: Diseño y Evaluación",
+                    corte: "Semestre VIII",
+                    progreso: 82,
+                    maxSem: 8,
+                    resumen: "Evalúa la integración técnica avanzada de las áreas funcionales. Integra modelos predictivos econométricos con el diseño técnico de proyectos de inversión.",
+                    diseno: {
+                        nombre: "Taller de Integración II: Formulación y Evaluación de Proyectos",
+                        objetivo: "Diseñar planes de inversión estratégica que resuelvan problemáticas organizacionales complejas integrando modelos predictivos, análisis financiero de riesgo y marcos de dirección estratégica.",
+                        ra: [
+                            "Formular proyectos de inversión detallados mediante el uso de modelos econométricos y analítica predictiva para la proyección de escenarios de demanda.",
+                            "Evaluar la factibilidad técnica, financiera y estratégica de propuestas de negocio bajo condiciones reales de incertidumbre utilizando ingeniería económica avanzada.",
+                            "Optimizar sistemas de control de gestión organizacional para asegurar el cumplimiento de objetivos estratégicos y la creación de valor sostenible."
+                        ],
+                        unidades: [
+                            { t: "U1: Modelamiento y Prospectiva", subs: ["1.1 Proyecciones mediante econometría aplicada", "1.2 Analítica avanzada para segmentación de mercado", "1.3 Construcción de escenarios y contingencias"] },
+                            { t: "U2: Ingeniería Económica", subs: ["2.1 Evaluación de criterios VAN y TIR", "2.2 Determinación de costo WACC y CAPM", "2.3 Simulación de Monte Carlo para riesgos"] },
+                            { t: "U3: Despliegue Estratégico", subs: ["3.1 Diseño de Balanced Scorecard (KPIs)", "3.2 Planificación de la gestión del cambio", "3.3 Auditoría de impacto social y ética"] }
+                        ]
+                    },
+                    dominios: [
+                        { id: 'D1', name: DOMAIN_COLORS.D1.name, porcentaje: 84, color: DOMAIN_COLORS.D1.main, icon: 'globe-2', comps: [{ id: '1.1', n: 'Avanzado', ra: '36/43' }] },
+                        { id: 'D2', name: DOMAIN_COLORS.D2.name, porcentaje: 81, color: DOMAIN_COLORS.D2.main, icon: 'layout-dashboard', comps: [{ id: '2.1', n: 'Avanzado', ra: '48/59' }] },
+                        { id: 'D3', name: DOMAIN_COLORS.D3.name, porcentaje: 68, color: DOMAIN_COLORS.D3.main, icon: 'rocket', comps: [{ id: '3.1', n: 'Intermedio+', ra: '11/16' }] }
+                    ]
+                },
+                {
+                    id: 2,
+                    nombre: "Hito 3: Autonomía y Gestión Estratégica",
+                    corte: "Semestre X",
+                    progreso: 100,
+                    maxSem: 10,
+                    resumen: "Consolida el logro total de las competencias del perfil de egreso. Evalúa la capacidad autónoma para liderar la resolución de problemas reales de alta complejidad.",
+                    diseno: {
+                        nombre: "Capstone Project: Gestión Estratégica y Sostenibilidad",
+                        objetivo: "Resolver desafíos organizacionales reales de alta complejidad demostrando autonomía profesional, rigor técnico y compromiso ético institucional.",
+                        ra: [
+                            "Resolver desafíos estratégicos reales mediante la ejecución de consultorías gerenciales integrales con visión sistémica y liderazgo interdisciplinario.",
+                            "Garantizar la creación de valor sostenible integrando modelos de gestión de triple impacto y estándares internacionales de responsabilidad corporativa.",
+                            "Liderar procesos de toma de decisiones en contextos de alta volatilidad fundamentando propuestas técnicas con alto rigor profesional y ético."
+                        ],
+                        unidades: [
+                            { t: "U1: Consultoría y Diagnóstico Holístico", subs: ["1.1 Diagnóstico organizacional 360° utilizando analítica avanzada", "1.2 Priorización de brechas y hoja de ruta estratégica", "1.3 Negociación de planes de intervención profesional"] },
+                            { t: "U2: Gestión de la Implementación", subs: ["2.1 Dirección de proyectos en tiempo real y optimización", "2.2 Monitoreo dinámico de KPIs e impacto social", "2.3 Adaptación ágil de la estrategia ante desviaciones"] },
+                            { t: "U3: Sello Profesional y Defensa de Título", subs: ["3.1 Resolución de dilemas éticos corporativos complejos", "3.2 Defensa técnica de resultados ante comité evaluador", "3.3 Reflexión sobre el compromiso profesional UCN"] }
+                        ]
+                    },
+                    dominios: [
+                        { id: 'D1', name: DOMAIN_COLORS.D1.name, porcentaje: 100, color: DOMAIN_COLORS.D1.main, icon: 'shield-check', comps: [{ id: '1.1', n: 'Avanzado', ra: '43/43' }] },
+                        { id: 'D2', name: DOMAIN_COLORS.D2.name, porcentaje: 100, color: DOMAIN_COLORS.D2.main, icon: 'graduation-cap', comps: [{ id: '2.1', n: 'Avanzado', ra: '59/59' }] },
+                        { id: 'D3', name: DOMAIN_COLORS.D3.name, porcentaje: 100, color: DOMAIN_COLORS.D3.main, icon: 'trophy', comps: [{ id: '3.1', n: 'Avanzado', ra: '16/16' }] }
+                    ]
+                }
+            ];
+
+            const currentHito = hitosData[selectedHito];
+
+            const filteredSubjects = useMemo(() => {
+                const semMap = { 'I':1, 'II':2, 'III':3, 'IV':4, 'V':5, 'VI':6, 'VII':7, 'VIII':8, 'IX':9, 'X':10 };
+                let filtered = masterSubjects.filter(s => semMap[s.sem] <= currentHito.maxSem);
+                if (filterDomain) filtered = filtered.filter(s => s.domain === filterDomain || s.domain === 'ALL');
+                return filtered;
+            }, [selectedHito, filterDomain]);
+
+            return (
+                <div className="p-4 md:p-10">
+                    <div className="max-w-7xl mx-auto space-y-10">
+                        
+                        {/* HEADER */}
+                        <header className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-center gap-6">
+                            <div className="flex items-center gap-5">
+                                <div className="bg-blue-600 p-4 rounded-[1.25rem] text-white shadow-xl flex items-center justify-center">
+                                    <Icon name="compass" size={32} />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-black uppercase tracking-tighter">INGECO UCN · Rediseño 2026</h1>
+                                    <p className="text-[10px] text-slate-400 font-black tracking-widest uppercase mt-1">Soporte Auditoría de Competencias</p>
+                                </div>
+                            </div>
+                            <nav className="flex bg-slate-100 p-1.5 rounded-[1.25rem] border border-slate-200">
+                                {hitosData.map((h, i) => (
+                                    <button
+                                        key={h.id}
+                                        onClick={() => { setSelectedHito(i); setFilterDomain(null); setExpandedDomain(null); }}
+                                        className={`px-8 py-3 rounded-xl text-[11px] font-black transition-all duration-300 ${
+                                            selectedHito === i 
+                                            ? 'bg-white text-blue-600 shadow-md border border-slate-100 scale-105' 
+                                            : 'text-slate-400 hover:text-slate-600'
+                                        }`}
+                                    >
+                                        HITO {i + 1}
+                                    </button>
+                                ))}
+                            </nav>
+                        </header>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            
+                            {/* PANEL ESTADO */}
+                            <div className="lg:col-span-4 space-y-6">
+                                <div className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm relative overflow-hidden h-full">
+                                    <div className="relative z-10">
+                                        <div className="flex items-center gap-2 text-blue-600 font-black text-[11px] uppercase tracking-[0.2em] mb-8">
+                                            <Icon name="activity" size={16} /> Auditoría {currentHito.corte}
+                                        </div>
+                                        <h2 className="text-3xl font-black text-slate-900 leading-none mb-8 tracking-tighter">{currentHito.nombre}</h2>
+                                        <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 mb-10">
+                                            <p className="text-[13px] text-slate-500 italic leading-relaxed font-semibold">
+                                                "{currentHito.resumen}"
+                                            </p>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-end px-1">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Madurez del Perfil</span>
+                                                <span className="text-3xl font-black text-blue-600">{currentHito.progreso}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden p-1 shadow-inner border border-white">
+                                                <div className="h-full bg-blue-600 rounded-full transition-all duration-1000" style={{ width: `${currentHito.progreso}%` }} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* DOMINIOS (FILTROS) */}
+                            <div className="lg:col-span-8 space-y-4">
+                                <div className="flex justify-between items-center px-4">
+                                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Dominios del Perfil de Egreso</h3>
+                                    {filterDomain && (
+                                        <button onClick={() => setFilterDomain(null)} className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-1 hover:underline">
+                                            <Icon name="x" size={14} /> Limpiar Filtro
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-1 gap-4">
+                                    {currentHito.dominios.map((dom) => (
+                                        <div 
+                                            key={dom.id} 
+                                            className={`bg-white border rounded-[2rem] transition-all cursor-pointer shadow-sm ${
+                                                filterDomain === dom.id ? 'ring-2 ring-offset-2 scale-[1.01]' : 'hover:border-slate-300'
+                                            }`}
+                                            style={{ borderColor: filterDomain === dom.id ? dom.color : 'transparent', ringColor: dom.color }}
+                                            onClick={() => {
+                                                const nextFilter = filterDomain === dom.id ? null : dom.id;
+                                                setFilterDomain(nextFilter);
+                                                setExpandedDomain(expandedDomain === dom.id ? null : dom.id);
+                                            }}
+                                        >
+                                            <div className="p-5 flex items-center justify-between">
+                                                <div className="flex items-center gap-6 flex-1">
+                                                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: dom.color }}>
+                                                        <Icon name={dom.icon} size={24} />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <h4 className="text-sm font-black text-slate-900 tracking-tight leading-none">{dom.name}</h4>
+                                                        <div className="flex items-center gap-6 mt-3">
+                                                            <div className="flex-1 h-2 bg-slate-50 rounded-full border border-slate-100 overflow-hidden shadow-inner">
+                                                                <div className="h-full transition-all duration-1000" style={{ width: `${dom.porcentaje}%`, backgroundColor: dom.color }} />
+                                                            </div>
+                                                            <span className="text-[11px] font-black text-slate-400 w-10">{dom.porcentaje}%</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {expandedDomain === dom.id ? <Icon name="chevron-down" size={24} className="text-slate-300" /> : <Icon name="chevron-right" size={24} className="text-slate-300" />}
+                                            </div>
+                                            {expandedDomain === dom.id && (
+                                                <div className="px-6 pb-6 pt-2 space-y-3 border-t border-slate-50 mt-1">
+                                                    {dom.comps.map((c, idx) => (
+                                                        <div key={idx} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
+                                                            <div>
+                                                                <span className="text-white text-[10px] font-black px-3 py-1 rounded-xl shadow-sm" style={{ backgroundColor: dom.color }}>COMP {c.id}</span>
+                                                                <span className="text-[11px] font-black text-slate-800 ml-4 uppercase tracking-tighter">Nivel esperado: {c.n}</span>
+                                                            </div>
+                                                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">RA Acumulados: {c.ra}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* FICHA TÉCNICA PEDAGÓGICA */}
+                        <div className="bg-white rounded-[3.5rem] p-12 border border-slate-200 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-80 h-80 bg-blue-50 rounded-full blur-[140px] -translate-y-1/2 translate-x-1/2 opacity-40" />
+                            
+                            <div className="relative z-10 space-y-12">
+                                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10 border-b border-slate-100 pb-12 mb-12">
+                                    <div className="space-y-4">
+                                        <span className="bg-blue-600 text-white text-[10px] font-black px-5 py-2 rounded-full uppercase tracking-widest shadow-xl inline-block">
+                                            Ficha Técnica Pedagógica
+                                        </span>
+                                        <h3 className="text-4xl font-black tracking-tighter text-slate-900 leading-tight">{currentHito.diseno.nombre}</h3>
+                                        <div className="flex items-start gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 max-w-4xl shadow-inner">
+                                            <Icon name="info" size={22} className="text-blue-600 shrink-0 mt-1" />
+                                            <div className="text-sm text-slate-600 font-bold leading-relaxed">
+                                                <span className="text-slate-400 uppercase tracking-widest block mb-2 text-[10px]">Propósito de la Asignatura Clave:</span>
+                                                {currentHito.diseno.objetivo}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="p-8 bg-slate-900 rounded-[3rem] text-white flex items-center gap-8 shadow-2xl shrink-0 border border-white/5">
+                                        <div className="text-right">
+                                            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1">Corte Curricular</p>
+                                            <p className="text-2xl font-black text-blue-400">{currentHito.corte}</p>
+                                        </div>
+                                        <div className="bg-blue-600 p-5 rounded-[1.5rem] shadow-xl">
+                                            <Icon name="clipboard-check" size={32} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                                    <div className="space-y-10">
+                                        <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] flex items-center gap-3">
+                                            <Icon name="target" size={20} className="text-blue-600" /> Resultados de Aprendizaje
+                                        </h4>
+                                        <div className="space-y-6">
+                                            {currentHito.diseno.ra.map((ra, idx) => (
+                                                <div key={idx} className="flex gap-6 p-7 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 hover:bg-white hover:border-blue-200 transition-all duration-300 hover:shadow-2xl group">
+                                                    <span className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 font-black text-xl shadow-md border border-slate-100 group-hover:bg-blue-600 group-hover:text-white transition-all shrink-0">{idx + 1}</span>
+                                                    <p className="flex-1 text-[13px] text-slate-700 leading-relaxed font-bold group-hover:text-slate-900 pt-1 tracking-tight">{ra}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-10">
+                                        <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] flex items-center gap-3">
+                                            <Icon name="layers" size={20} className="text-emerald-600" /> Unidades y Sub-unidades
+                                        </h4>
+                                        <div className="space-y-10">
+                                            {currentHito.diseno.unidades.map((u, idx) => (
+                                                <div key={idx} className="relative pl-12 border-l-2 border-slate-100 pb-2">
+                                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-emerald-500 shadow-md" />
+                                                    <h5 className="font-black text-sm text-slate-900 mb-3 uppercase tracking-tighter leading-none">{u.t}</h5>
+                                                    <div className="grid grid-cols-1 gap-2.5">
+                                                        {u.subs.map((sub, sIdx) => (
+                                                            <div key={sIdx} className="flex items-center gap-3 text-[11px] font-black text-slate-400 bg-slate-50 p-2.5 rounded-2xl border border-slate-50 hover:bg-white transition-all shadow-sm">
+                                                                <Icon name="settings" size={14} className="text-emerald-300" /> {sub}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* MATRIZ TÉCNICA */}
+                        <div className="bg-white rounded-[3.5rem] border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="p-10 bg-slate-50/50 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
+                                <div className="flex items-center gap-6">
+                                    <div className="p-4 bg-white rounded-3xl shadow-sm border border-slate-100 text-blue-600">
+                                        <Icon name="book-open" size={28} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter leading-none">Matriz de Trayectoria Técnica</h3>
+                                        <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em] mt-3">Análisis homogéneo de Resultados de Aprendizaje acumulados</p>
+                                    </div>
+                                </div>
+                                <div className="bg-white px-8 py-3 rounded-2xl border border-slate-200 shadow-sm">
+                                    <span className="text-[11px] font-black text-blue-600 uppercase tracking-widest">
+                                        {filteredSubjects.length} Asignaturas Auditadas
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-left table-fixed">
+                                    <thead>
+                                        <tr className="bg-slate-50/30 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border-b border-slate-100">
+                                            <th className="px-10 py-6 w-32 text-center">Semestre</th>
+                                            <th className="px-10 py-6">Materia del Plan</th>
+                                            <th className="px-10 py-6 text-center w-48">Dominio Principal</th>
+                                            <th className="px-10 py-6 text-right w-44">Grado RA</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {filteredSubjects.map((s) => (
+                                            <tr 
+                                                key={s.id} 
+                                                className={`transition-all duration-300 group hover:bg-slate-50 ${filterDomain && s.domain === filterDomain ? 'bg-blue-50/20' : ''}`}
+                                            >
+                                                <td className="px-10 py-8 text-[11px] font-black text-slate-300 group-hover:text-slate-900 text-center uppercase tracking-[0.2em]">Sem {s.sem}</td>
+                                                <td className="px-10 py-8">
+                                                    <div className="flex flex-col">
+                                                        <span className={`text-[13px] font-black leading-tight ${s.comp.includes('HITO') ? 'text-blue-600 italic underline decoration-blue-200 underline-offset-4' : 'text-slate-700'}`}>{s.nombre}</span>
+                                                        <span className="text-[11px] text-slate-400 font-black flex items-center gap-2 mt-3 opacity-60 uppercase tracking-widest">
+                                                            <Icon name="search" size={12} className="text-slate-300" /> Aporte RA: {s.ra}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-10 py-8 text-center">
+                                                    <span className="text-[11px] font-black px-4 py-2 rounded-[1.25rem] border shadow-sm transition-all" style={{ 
+                                                        backgroundColor: DOMAIN_COLORS[s.domain]?.light || '#f8fafc',
+                                                        color: DOMAIN_COLORS[s.domain]?.text || '#64748b',
+                                                        borderColor: DOMAIN_COLORS[s.domain]?.border || '#f1f5f9'
+                                                    }}>{s.comp}</span>
+                                                </td>
+                                                <td className="px-10 py-8 text-right">
+                                                    <span className={`text-[11px] font-black px-4 py-2 rounded-[1.25rem] border shadow-sm ${NIVELES[s.nivel].color}`}>{NIVELES[s.nivel].label}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="p-8 bg-slate-50 flex flex-col md:flex-row items-center justify-between border-t border-slate-100 gap-6">
+                                <div className="flex gap-8">
+                                    {['D1', 'D2', 'D3'].map(d => (
+                                        <div key={d} className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                            <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: DOMAIN_COLORS[d].main }}></div> {d}
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.3em] flex items-center gap-2">
+                                    <Icon name="shield-check" size={16} /> Ingeniería Comercial UCN · Rediseño 2026
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
